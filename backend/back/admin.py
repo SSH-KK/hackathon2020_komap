@@ -7,4 +7,5 @@ admin.site.register(models.Game)
 admin.site.register(models.InvitationToken)
 admin.site.register(models.Gamer)
 admin.site.register(models.Team)
+admin.site.register(models.CurrentCheckPoint)
 # Register your models here.
