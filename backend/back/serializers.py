@@ -1,6 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from . import models
+from .models import Game
+
+class GameListSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = Game
+		fields = '__all__'
 
 class UserRegisterSerializer(serializers.ModelSerializer):
 	email = serializers.EmailField(required=True)
