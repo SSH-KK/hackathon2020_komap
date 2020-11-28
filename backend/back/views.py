@@ -10,18 +10,25 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.template.loader import render_to_string
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import EmailMultiAlternatives
-from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer, GameListSerializer
+from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer, GameListSerializer, TeamSerializer
 from django.utils.html import strip_tags
 from django.contrib.auth.password_validation import validate_password
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
-from .models import Game
+from .models import Game, Team, Gamer, Profile, InvitationToken
+from hashlib import sha1
 import six
 import threading
 
 class EmailTokenGenerator(PasswordResetTokenGenerator):
 	def _make_hash_value(self, user, timestamp):
 		return(six.text_type(user.pk) + six.text_type(timestamp) + six.text_type(user.is_active))
+
+# class InviteTokenGenerator(PasswordResetTokenGenerator):
+# 	def make_token(self, user,):
+#         return self._make_token_with_timestamp(user, self._num_seconds(self._now()))
+# 	def _make_hash_value(self, user, timestamp):
+# 		return(six.text_type(user.pk) + six.text_type(timestamp) + six.text_type(user.is_active))
 
 email_token_gen = EmailTokenGenerator()
 password_token_gen = PasswordResetTokenGenerator()
@@ -37,11 +44,80 @@ class ListGamesAPIView(generics.ListAPIView):
 	def get_queryset(self):
 		return Game.objects.filter(active = True)
 
-class SingleGameAPIView(generics.RetrieveAPIView):
-	serializer_class = GameListSerializer
-	permission_classes = [permissions.IsAuthenticated]
-	lookup_field = 'slug'
-	queryset = Game.objects.all()
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def SingleGameAPIView(request, slug):
+	game = Game.objects.filter(slug = slug)
+	if(game.exists()):
+		profile = Profile.objects.get(user = request.user)
+		game = game.first()
+		teams = Team.objects.filter(game = game)
+		team = []
+		for team_i in teams:
+			if(Gamer.objects.filter(profile = profile, team = team_i).exists()):
+				team = team_i
+				break
+		if(team):
+			serializer = TeamSerializer(team)
+			data = serializer.data
+			gamers = data['gamers']
+			can_start = False
+			invite_token = ''
+			if(team.captain == profile and (not game.co_op or len(gamers) == game.max_gamers)):
+				can_start = True
+			if(team.captain == profile):
+				invite = InvitationToken.objects.filter(team = team)
+				if(invite.exists()):
+					invite = invite.first()
+					invite_token = invite.token
+			return Response({'ok':True, 'can_take_part':False, 'can_start':can_start, 'invite_token':invite_token, **data}, status = status.HTTP_200_OK)
+		else:
+			serializer = GameListSerializer(game)
+			data = serializer.data
+			return Response({'ok':True, 'can_take_part':True, **serializer.data}, status = status.HTTP_200_OK)
+	return Response({'ok':False, 'error':'Game does not exist'},status = status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def GameTakePartAPIView(request, slug):
+	game = Game.objects.filter(slug = slug)
+	if(game.exists()):
+		game = game.first()
+		profile = Profile.objects.get(user = request.user)
+		teams = Team.objects.filter(game = game, captain = profile)
+		team = []
+		for team_i in teams:
+			if(Gamer.objects.filter(profile = profile, team = team_i).exists()):
+				team = team_i
+				break
+		if(not team):
+			team = Team.objects.create(game = game, captain = profile)
+			if(game.co_op):
+				invite_token = sha1(bytes(f'{team.id}{game.id}{profile.id}{profile.user.username}','utf-8')).hexdigest()[:200]
+				InvitationToken.objects.create(team = team, token = invite_token)
+			gamer = Gamer.objects.create(team = team, profile = profile)
+			return Response({'ok':True}, status = status.HTTP_200_OK)
+		return Response({'ok':False, 'error':'You alredy take part in this game'},status = status.HTTP_400_BAD_REQUEST)
+	return Response({'ok':False, 'error':'Game does not exist'},status = status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def JoinTeamAPIView(request, slug, token):
+	game = Game.objects.filter(slug = slug)
+	if(game.exists()):
+		invite = InvitationToken.objects.filter(token = token)
+		if(invite.exists()):
+			profile = Profile.objects.get(user = request.user)
+			invite = invite.first()
+			team = invite.team
+			serializer = TeamSerializer(team)
+			gamers = serializer.data['gamers']
+			if(len(gamers) < team.game.max_gamers):
+				Gamer.objects.create(team = team, profile = profile)
+				return Response({'ok':True},status = status.HTTP_200_OK)
+			return Response({'ok':False, 'error':'Game finished or team is full'},status = status.HTTP_400_BAD_REQUEST)
+		return Response({'ok':False, 'error':'Invalid invite link'},status = status.HTTP_400_BAD_REQUEST)
+	return Response({'ok':False, 'error':'Game does not exist'},status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([~permissions.IsAuthenticated])

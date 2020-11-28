@@ -37,6 +37,22 @@ class CheckPoint(models.Model):
 	start = models.BooleanField(default = False)
 	address = models.CharField(max_length = 200, blank = True, null = True)
 
+class Team(models.Model):
+	game = models.ForeignKey(Game, on_delete= models.CASCADE, blank = False, null = False)
+	active = models.BooleanField(default = False)
+	finished = models.BooleanField(default = False)
+	start = models.DateTimeField(blank = True, null = True)
+	end = models.DateTimeField(blank = True, null = True)
+	captain = models.ForeignKey(Profile, on_delete = models.CASCADE, blank = True, null = True)
+
+class InvitationToken(models.Model):
+	token = models.CharField(max_length = 200, blank = False, null = False)
+	team = models.ForeignKey(Team, on_delete = models.CASCADE, blank = False, null = False)
+
+class Gamer(models.Model):
+	profile = models.ForeignKey(Profile, on_delete = models.CASCADE, blank = False, null = False)
+	team = models.ForeignKey(Team, on_delete = models.CASCADE, related_name = 'gamers', blank = False, null = False)
+
 @receiver(post_save, sender = User)
 def create_profile(sender, instance, created, **kwargs):
 	if(created):
