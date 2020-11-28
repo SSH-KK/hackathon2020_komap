@@ -10,9 +10,12 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.template.loader import render_to_string
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import EmailMultiAlternatives
-from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer
+from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer, GameListSerializer
 from django.utils.html import strip_tags
 from django.contrib.auth.password_validation import validate_password
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import OrderingFilter, SearchFilter
+from .models import Game
 import six
 import threading
 
@@ -22,6 +25,23 @@ class EmailTokenGenerator(PasswordResetTokenGenerator):
 
 email_token_gen = EmailTokenGenerator()
 password_token_gen = PasswordResetTokenGenerator()
+
+class ListGamesAPIView(generics.ListAPIView):
+	serializer_class = GameListSerializer
+	permission_classes = [permissions.IsAuthenticated]
+	filter_backends = [SearchFilter, OrderingFilter, DjangoFilterBackend]
+	filterset_fields = ['co_op','max_gamers','active','average_time']
+	ordering_fields = ['max_gamers','active','average_time','name']
+	search_fields = ['name', 'description']
+
+	def get_queryset(self):
+		return Game.objects.filter(active = True)
+
+class SingleGameAPIView(generics.RetrieveAPIView):
+	serializer_class = GameListSerializer
+	permission_classes = [permissions.IsAuthenticated]
+	lookup_field = 'slug'
+	queryset = Game.objects.all()
 
 @api_view(['POST'])
 @permission_classes([~permissions.IsAuthenticated])
