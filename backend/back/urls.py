@@ -4,8 +4,9 @@ from . import views
 
 urlpatterns = [
 	path('games', views.ListGamesAPIView.as_view(), name = 'ListGames'),
-	path('game/<slug>', views.SingleGameAPIView.as_view(), name = 'SingleGame'),
-	# path('game/<slug>/take_part',),
+	path('game/<slug>', views.SingleGameAPIView, name = 'SingleGame'),
+	path('game/<slug>/take_part',views.GameTakePartAPIView, name = 'GameTakePartAPIView'),
+	path('game/<slug>/join_team/<token>',views.JoinTeamAPIView, name = 'JoinTeam'),
 	path('register', views.UserRegisterAPIView, name = 'UserRegister'),
 	path('login', obtain_auth_token, name = 'UserLogin'),
 	path('logout', views.UserLogoutAPIView, name = 'UserLogout'),
