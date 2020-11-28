@@ -3,9 +3,10 @@ from rest_framework.authtoken.views import obtain_auth_token
 from . import views
 
 urlpatterns = [
-	path('games', views.ListGamesAPIView.as_view(), name = 'ListGames'),
+	path('games/<visited>', views.ListGamesAPIView.as_view(), name = 'ListGames'),
 	path('game/<slug>', views.SingleGameAPIView, name = 'SingleGame'),
 	path('game/<slug>/take_part',views.GameTakePartAPIView, name = 'GameTakePartAPIView'),
+	path('game/<slug>/start', views.StartGameAPIView, name = 'StartGame'),
 	path('game/<slug>/join_team/<token>',views.JoinTeamAPIView, name = 'JoinTeam'),
 	path('register', views.UserRegisterAPIView, name = 'UserRegister'),
 	path('login', obtain_auth_token, name = 'UserLogin'),

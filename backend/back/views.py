@@ -16,6 +16,7 @@ from django.contrib.auth.password_validation import validate_password
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
 from .models import Game, Team, Gamer, Profile, InvitationToken
+from django.utils import timezone
 from hashlib import sha1
 import six
 import threading
@@ -24,14 +25,15 @@ class EmailTokenGenerator(PasswordResetTokenGenerator):
 	def _make_hash_value(self, user, timestamp):
 		return(six.text_type(user.pk) + six.text_type(timestamp) + six.text_type(user.is_active))
 
-# class InviteTokenGenerator(PasswordResetTokenGenerator):
-# 	def make_token(self, user,):
-#         return self._make_token_with_timestamp(user, self._num_seconds(self._now()))
-# 	def _make_hash_value(self, user, timestamp):
-# 		return(six.text_type(user.pk) + six.text_type(timestamp) + six.text_type(user.is_active))
-
 email_token_gen = EmailTokenGenerator()
 password_token_gen = PasswordResetTokenGenerator()
+
+def list_to_queryset(model_list):
+    if len(model_list) > 0:
+        return model_list[0].__class__.objects.filter(
+                    pk__in=[obj.pk for obj in model_list])
+    else:
+        return []
 
 class ListGamesAPIView(generics.ListAPIView):
 	serializer_class = GameListSerializer
@@ -42,7 +44,15 @@ class ListGamesAPIView(generics.ListAPIView):
 	search_fields = ['name', 'description']
 
 	def get_queryset(self):
-		return Game.objects.filter(active = True)
+		profile = Profile.objects.get(user = self.request.user)
+		if(self.kwargs['visited'] == '0'):
+			data = list(map(lambda team_i: team_i.game,filter(lambda ob:not Gamer.objects.filter(profile = profile, team = ob).exists(), Team.objects.all())))
+		else:
+			data = list(map(lambda team_i: team_i.game,filter(lambda ob:Gamer.objects.filter(profile = profile, team = ob).exists(), Team.objects.all())))
+		if(len(data)!=0):
+			return list_to_queryset(data)
+		else:
+			return Game.objects.none()
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
@@ -63,19 +73,22 @@ def SingleGameAPIView(request, slug):
 			gamers = data['gamers']
 			can_start = False
 			invite_token = ''
-			if(team.captain == profile and (not game.co_op or len(gamers) == game.max_gamers)):
-				can_start = True
-			if(team.captain == profile):
-				invite = InvitationToken.objects.filter(team = team)
-				if(invite.exists()):
-					invite = invite.first()
-					invite_token = invite.token
+			if(not team.active):
+				if(team.captain == profile and (not game.co_op or len(gamers) == game.max_gamers) and not team.finished):
+					can_start = True
+				if(team.captain == profile and len(gamers) != game.max_gamers and not team.finished):
+					invite = InvitationToken.objects.filter(team = team)
+					if(invite.exists()):
+						invite = invite.first()
+						invite_token = invite.token
+			else:
+				pass
 			return Response({'ok':True, 'can_take_part':False, 'can_start':can_start, 'invite_token':invite_token, **data}, status = status.HTTP_200_OK)
 		else:
 			serializer = GameListSerializer(game)
 			data = serializer.data
 			return Response({'ok':True, 'can_take_part':True, **serializer.data}, status = status.HTTP_200_OK)
-	return Response({'ok':False, 'error':'Game does not exist'},status = status.HTTP_400_BAD_REQUEST)
+	return Response({'ok':False, 'error':'Game does not exist'}, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -84,7 +97,7 @@ def GameTakePartAPIView(request, slug):
 	if(game.exists()):
 		game = game.first()
 		profile = Profile.objects.get(user = request.user)
-		teams = Team.objects.filter(game = game, captain = profile)
+		teams = Team.objects.filter(game = game)
 		team = []
 		for team_i in teams:
 			if(Gamer.objects.filter(profile = profile, team = team_i).exists()):
@@ -97,8 +110,8 @@ def GameTakePartAPIView(request, slug):
 				InvitationToken.objects.create(team = team, token = invite_token)
 			gamer = Gamer.objects.create(team = team, profile = profile)
 			return Response({'ok':True}, status = status.HTTP_200_OK)
-		return Response({'ok':False, 'error':'You alredy take part in this game'},status = status.HTTP_400_BAD_REQUEST)
-	return Response({'ok':False, 'error':'Game does not exist'},status = status.HTTP_400_BAD_REQUEST)
+		return Response({'ok':False, 'error':'You alredy take part in this game'}, status = status.HTTP_400_BAD_REQUEST)
+	return Response({'ok':False, 'error':'Game does not exist'}, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -115,9 +128,32 @@ def JoinTeamAPIView(request, slug, token):
 			if(len(gamers) < team.game.max_gamers):
 				Gamer.objects.create(team = team, profile = profile)
 				return Response({'ok':True},status = status.HTTP_200_OK)
-			return Response({'ok':False, 'error':'Game finished or team is full'},status = status.HTTP_400_BAD_REQUEST)
-		return Response({'ok':False, 'error':'Invalid invite link'},status = status.HTTP_400_BAD_REQUEST)
-	return Response({'ok':False, 'error':'Game does not exist'},status = status.HTTP_400_BAD_REQUEST)
+			return Response({'ok':False, 'error':'Game finished or team is full'}, status = status.HTTP_400_BAD_REQUEST)
+		return Response({'ok':False, 'error':'Invalid invite link'}, status = status.HTTP_400_BAD_REQUEST)
+	return Response({'ok':False, 'error':'Game does not exist'}, status = status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def StartGameAPIView(request,slug):
+	game = Game.objects.filter(slug = slug)
+	if(game.exists()):
+		game = game.first()
+		profile = Profile.objects.get(user = request.user)
+		teams = Team.objects.filter(game = game, captain = profile)
+		team = []
+		for team_i in teams:
+			if(Gamer.objects.filter(profile = profile, team = team_i).exists()):
+				team = team_i
+				break
+		if(team):
+			if(team.captain == profile and not team.finished and not team.active):
+				team.is_active = True
+				team.start = timezone.now()
+				team.save()
+				return Response({'ok':True}, status = status.HTTP_200_OK)
+			return Response({'ok':False, 'error':'You are not a captain or game finished or game in progress'}, status = status.HTTP_400_BAD_REQUEST)
+		return Response({'ok':False, 'error':'You do not take part in game'}, status = status.HTTP_400_BAD_REQUEST)
+	return Response({'ok':False, 'error':'Game does not exist'}, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([~permissions.IsAuthenticated])
@@ -130,7 +166,7 @@ def UserRegisterAPIView(request):
 		try:
 			validate_password(data['password'])
 		except Exception as errors:
-			return Response({'ok':False, 'error':errors} ,status = status.HTTP_400_BAD_REQUEST)
+			return Response({'ok':False, 'error':errors}, status = status.HTTP_400_BAD_REQUEST)
 		user = User.objects.create(username = data['username'], email = data['email'], is_active = False)
 		user.set_password(data['password'])
 		user.save()
@@ -145,7 +181,7 @@ def UserRegisterAPIView(request):
 		message_task = threading.Thread(target = async_email_send, args=( mail_subject, message, [data['email']] ))
 		message_task.start()
 		return Response({'ok':True}, status = status.HTTP_200_OK)
-	return Response({'ok':False, 'error':serializer.errors},status = status.HTTP_400_BAD_REQUEST)
+	return Response({'ok':False, 'error':serializer.errors}, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
@@ -192,7 +228,7 @@ def UserResetPasswordAPIView(request, uidb64, token):
 		try:
 			validate_password(data['password'])
 		except Exception as errors:
-			return Response({'ok':False, 'error':errors} ,status = status.HTTP_400_BAD_REQUEST)
+			return Response({'ok':False, 'error':errors}, status = status.HTTP_400_BAD_REQUEST)
 		uid = force_text(urlsafe_base64_decode(uidb64))
 		user = User.objects.filter(id = uid)
 		if(user.exists()):
@@ -201,8 +237,8 @@ def UserResetPasswordAPIView(request, uidb64, token):
 				user.set_password(data['password'])
 				user.save()
 				return Response({'ok':True}, status = status.HTTP_200_OK)
-			return Response({'ok':False, 'error':'Invalid password reset link'} ,status = status.HTTP_400_BAD_REQUEST)
-		return Response({'ok':False, 'error':'User does not exist'} ,status = status.HTTP_400_BAD_REQUEST)
+			return Response({'ok':False, 'error':'Invalid password reset link'}, status = status.HTTP_400_BAD_REQUEST)
+		return Response({'ok':False, 'error':'User does not exist'}, status = status.HTTP_400_BAD_REQUEST)
 	return Response({'ok':False, 'error':serializer.errors}, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
