@@ -23,6 +23,7 @@ class Game(models.Model):
 	co_op = models.BooleanField(blank = False, null = False)
 	max_gamers = models.DecimalField(max_digits = 3, decimal_places = 0, blank = False, null = False)
 	active = models.BooleanField(default = True)
+	points = models.DecimalField(max_digits = 3, decimal_places = 0, blank = False, null = False)
 	slug = models.SlugField(unique = True, blank = True, null = False)
 
 class CheckPoint(models.Model):
@@ -31,11 +32,12 @@ class CheckPoint(models.Model):
 	coordinates_lat = models.DecimalField(max_digits = 8, decimal_places = 6, blank = True, null = True)
 	coordinates_lon = models.DecimalField(max_digits = 8, decimal_places = 6, blank = True, null = True)
 	description = models.TextField(blank = False, null = False)
-	next_checkpoint_id = models.DecimalField(max_digits = 4, decimal_places = 0, blank = True, null = True)
+	next_checkpoint = models.ForeignKey('self', on_delete = models.CASCADE, blank = True, null = True)
 	qr_data = models.TextField(blank = True, null = True)
 	last = models.BooleanField(default = False)
 	start = models.BooleanField(default = False)
 	address = models.CharField(max_length = 200, blank = True, null = True)
+	game = models.ForeignKey(Game, on_delete = models.CASCADE, blank = False, null = False)
 
 class Team(models.Model):
 	game = models.ForeignKey(Game, on_delete= models.CASCADE,related_name = 'teams', blank = False, null = False)
@@ -53,9 +55,9 @@ class Gamer(models.Model):
 	profile = models.ForeignKey(Profile, on_delete = models.CASCADE, blank = False, null = False)
 	team = models.ForeignKey(Team, on_delete = models.CASCADE, related_name = 'gamers', blank = False, null = False)
 
-# class CurrentCheckPoint(models.Model):
-# 	team = models.ForeignKey(Team, on_delete = models.CASCADE, blank = False, null = False)
-# 	check_point = models.ForeignKey()
+class CurrentCheckPoint(models.Model):
+	team = models.ForeignKey(Team, on_delete = models.CASCADE, blank = False, null = False)
+	check_point = models.ForeignKey(CheckPoint, on_delete = models.CASCADE, blank = False, null = False)
 
 @receiver(post_save, sender = User)
 def create_profile(sender, instance, created, **kwargs):

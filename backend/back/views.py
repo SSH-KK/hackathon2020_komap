@@ -10,16 +10,18 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.template.loader import render_to_string
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import EmailMultiAlternatives
-from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer, GameListSerializer, TeamSerializer
+from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer, GameListSerializer, TeamSerializer, CurrentCheckPointSerializer, CheckPointCoordinatesSerializer
 from django.utils.html import strip_tags
 from django.contrib.auth.password_validation import validate_password
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
-from .models import Game, Team, Gamer, Profile, InvitationToken
+from .models import Game, Team, Gamer, Profile, InvitationToken, CurrentCheckPoint, CheckPoint
+from django.conf import settings
 from django.utils import timezone
 from hashlib import sha1
 import six
 import threading
+import math
 
 class EmailTokenGenerator(PasswordResetTokenGenerator):
 	def _make_hash_value(self, user, timestamp):
@@ -81,13 +83,67 @@ def SingleGameAPIView(request, slug):
 					if(invite.exists()):
 						invite = invite.first()
 						invite_token = invite.token
+				if(team.finished):
+					done_chepoints = []
+					cur_checkpoint = CurrentCheckPoint.objects.get(team = team).check_point
+					temp_check_point = CheckPoint.objects.get(game = team.game, start = True)
+					done_chepoints.append(CheckPointCoordinatesSerializer(temp_check_point).data)
+					while temp_check_point.id!=cur_checkpoint.id:
+						temp_check_point = temp_check_point.next_checkpoint
+						done_chepoints.append(CheckPointCoordinatesSerializer(temp_check_point).data)
+					return Response({'ok':True, 'can_take_part':False, 'can_start':can_start, 'invite_token':invite_token, **data, 'done_chepoints':done_chepoints}, status = status.HTTP_200_OK)
+				return Response({'ok':True, 'can_take_part':False, 'can_start':can_start, 'invite_token':invite_token, **data}, status = status.HTTP_200_OK)
 			else:
-				pass
-			return Response({'ok':True, 'can_take_part':False, 'can_start':can_start, 'invite_token':invite_token, **data}, status = status.HTTP_200_OK)
+				done_chepoints = []
+				cur_checkpoint = CurrentCheckPoint.objects.get(team = team).check_point
+				cur_checkpoint_serializer = CurrentCheckPointSerializer(cur_checkpoint)
+				temp_check_point = CheckPoint.objects.get(game = team.game, start = True)
+				done_chepoints.append(CheckPointCoordinatesSerializer(temp_check_point).data)
+				while temp_check_point.id!=cur_checkpoint.id:
+					temp_check_point = temp_check_point.next_checkpoint
+					done_chepoints.append(CheckPointCoordinatesSerializer(temp_check_point).data)
+				return Response({'ok':True, 'can_take_part':False, 'can_start':can_start, 'invite_token':invite_token, **data, 'current_checkpoint':cur_checkpoint_serializer.data, 'done_chepoints':done_chepoints}, status = status.HTTP_200_OK)
 		else:
 			serializer = GameListSerializer(game)
 			data = serializer.data
 			return Response({'ok':True, 'can_take_part':True, **serializer.data}, status = status.HTTP_200_OK)
+	return Response({'ok':False, 'error':'Game does not exist'}, status = status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def CloseCheckPointAPIView(request, slug):
+	game = Game.objects.filter(slug = slug)
+	if(game.exists()):
+		profile = Profile.objects.get(user = request.user)
+		game = game.first()
+		teams = Team.objects.filter(game = game)
+		team = []
+		for team_i in teams:
+			if(Gamer.objects.filter(profile = profile, team = team_i).exists()):
+				team = team_i
+				break
+		if(team):
+			temp_check_point = CheckPointCoordinatesSerializer(data = request.data)
+			if(temp_check_point.is_valid() and team.active and not team.finished):
+				temp_check_point = temp_check_point.validated_data
+				cur_checkpoint = CurrentCheckPoint.objects.get(team = team)
+				dest = math.sqrt((temp_check_point['coordinates_lat']-cur_checkpoint.check_point.next_checkpoint.coordinates_lat)**2 + (temp_check_point['coordinates_lon']-cur_checkpoint.check_point.next_checkpoint.coordinates_lon)**2)
+				if(dest<settings.MAX_CHECK_RADIUS):
+					cur_checkpoint.check_point = cur_checkpoint.check_point.next_checkpoint
+					cur_checkpoint.save()
+					if(cur_checkpoint.check_point.last):
+						team.active = False
+						team.finished = True
+						team.end = timezone.now()
+						team.save()
+						for gamer in team.gamers.all():
+							temp_prof = gamer.profile
+							temp_prof.points += game.points
+							temp_prof.save()
+					return Response({'ok':True}, status = status.HTTP_200_OK)
+				return Response({'ok':False, 'error':'You are too far from the place'}, status = status.HTTP_400_BAD_REQUEST)
+			return Response({'ok':False, 'error':temp_check_point.errors if temp_check_point.errors else 'Game finished' }, status = status.HTTP_400_BAD_REQUEST)
+		return Response({'ok':False, 'error':'You do not take part in game'}, status = status.HTTP_400_BAD_REQUEST)
 	return Response({'ok':False, 'error':'Game does not exist'}, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
@@ -147,9 +203,11 @@ def StartGameAPIView(request,slug):
 				break
 		if(team):
 			if(team.captain == profile and not team.finished and not team.active):
-				team.is_active = True
+				team.active = True
 				team.start = timezone.now()
 				team.save()
+				first_check_point = CheckPoint.objects.get(game = team.game, start = True)
+				cur_checkpoint = CurrentCheckPoint.objects.create(team = team, check_point = first_check_point)
 				return Response({'ok':True}, status = status.HTTP_200_OK)
 			return Response({'ok':False, 'error':'You are not a captain or game finished or game in progress'}, status = status.HTTP_400_BAD_REQUEST)
 		return Response({'ok':False, 'error':'You do not take part in game'}, status = status.HTTP_400_BAD_REQUEST)
