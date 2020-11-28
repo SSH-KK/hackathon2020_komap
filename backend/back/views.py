@@ -10,7 +10,7 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.template.loader import render_to_string
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import EmailMultiAlternatives
-from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer, GameListSerializer, TeamSerializer, CurrentCheckPointSerializer, CheckPointCoordinatesSerializer
+from .serializers import UserRegisterSerializer, UserResetPasswordSerializer, UserPasswordSerializer, GameListSerializer, TeamSerializer, CurrentCheckPointSerializer, CheckPointCoordinatesSerializer, ProfileInfoSerializer
 from django.utils.html import strip_tags
 from django.contrib.auth.password_validation import validate_password
 from django_filters.rest_framework import DjangoFilterBackend
@@ -298,6 +298,13 @@ def UserResetPasswordAPIView(request, uidb64, token):
 			return Response({'ok':False, 'error':'Invalid password reset link'}, status = status.HTTP_400_BAD_REQUEST)
 		return Response({'ok':False, 'error':'User does not exist'}, status = status.HTTP_400_BAD_REQUEST)
 	return Response({'ok':False, 'error':serializer.errors}, status = status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def ProfileInfoAPIView(request):
+	profile = Profile.objects.get(user = request.user)
+	serializer = ProfileInfoSerializer(profile)
+	return Response({'ok':True, **serializer.data}, status = status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import Game, Team, Gamer, CheckPoint
+from .models import Game, Team, Gamer, CheckPoint, Profile
 
 class GameListSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -16,6 +16,17 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 			'password',
 			'email'
 		]
+
+class ProfileInfoSerializer(serializers.ModelSerializer):
+	username = serializers.SerializerMethodField()
+	class Meta:
+		model = Profile
+		fields = [
+			'points',
+			'username'
+		]
+	def get_username(self, obj):
+		return obj.user.username
 
 class CheckPointCoordinatesSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -36,10 +47,6 @@ class CurrentCheckPointSerializer(serializers.ModelSerializer):
 			'description',
 			'address',
 		]
-	# def get_done_check_points(self, obj):
-
-	# 	return(CheckPointCoordinatesSerializer(obj).data)
-
 
 class TeamSerializer(serializers.ModelSerializer):
 	game = serializers.SerializerMethodField()
