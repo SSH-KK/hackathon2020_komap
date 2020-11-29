@@ -1,0 +1,42 @@
+.content {
+  padding: 0.8rem;
+  background-color: #ffffff;
+  border-radius: 30px;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+}
+
+.logo {
+  display: grid;
+  gap: 0.5rem;
+  align-self: center;
+  grid-template-columns: auto auto;
+}
+
+.link {
+  font-style: normal;
+  font-weight: 500;
+  font-size: 0.8rem;
+  letter-spacing: 0.07em;
+  color: var(--main-font-color);
+  align-self: center;
+  padding: 0 0.8rem;
+  text-align: center;
+  border: 2px solid #ffd600;
+  box-sizing: border-box;
+  border-radius: 10px;
+}
+
+.textLogo {
+  align-self: center;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 1.2rem;
+  align-items: center;
+  text-align: right;
+  letter-spacing: 0.07em;
+  color: var(--main-font-color);
+}

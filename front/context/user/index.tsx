@@ -2,17 +2,10 @@ import React, { useMemo, useState } from "react";
 
 import { UserContextT, UserT } from "types/userContext";
 
-const UserContext = React.createContext<UserContextT>(null);
-
-const initialContext: UserT = {
-  username: "",
-  email: "",
-  points: 0,
-  id: 0,
-};
+const UserContext = React.createContext<UserContextT | null>(null);
 
 const UserProvider: React.FC = ({ children }) => {
-  const [state, setState] = useState<UserT>(initialContext);
+  const [state, setState] = useState<UserT>();
 
   const value = useMemo(() => ({ userState: state, setUserState: setState }), [
     state,

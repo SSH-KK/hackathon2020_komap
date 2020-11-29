@@ -1,12 +1,13 @@
-import React from "react";
+import { UserContext } from "context/user";
 import Link from "next/link";
+import React, { useContext } from "react";
 
-import { IHeaderProps } from "types/user";
+const UserHeader: React.FC = () => {
+  const user = useContext(UserContext);
 
-const Header: React.FC<IHeaderProps> = ({ points }) => {
   return (
-    <header>
-      <div>Очки: {points}</div>
+    <>
+      <div>Очки: {user?.userState?.points || 0}</div>
       <nav>
         <ul>
           <li>
@@ -21,8 +22,8 @@ const Header: React.FC<IHeaderProps> = ({ points }) => {
           </li>
         </ul>
       </nav>
-    </header>
+    </>
   );
 };
 
-export default Header;
+export default UserHeader;
