@@ -261,7 +261,10 @@ def UserRegisterAPIView(request):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def UserActivationAPIView(request, uidb64, token):
-	uid = force_text(urlsafe_base64_decode(uidb64))
+	try:
+		uid = force_text(urlsafe_base64_decode(uidb64))
+	except:
+		return Response({'ok':False, 'error':'Invalid activation link'}, status = status.HTTP_400_BAD_REQUEST)
 	user = User.objects.filter(id = uid)
 	if(user.exists()):
 		user = user.first()
