@@ -8,6 +8,12 @@ CheckPointTypes = [
 	('GPS','GPS Coordinates')
 ]
 
+def get_check_path(instance, filename):
+	return(f'{instance.game.title}/{instance.name}_{filename}')
+
+def get_game_path(instance, filename):
+	return(f'{instance.title}/{instance.title}_{filename}')
+
 class Profile(models.Model):
 	user = models.OneToOneField(User, on_delete = models.CASCADE)
 	points = models.DecimalField(max_digits=7, decimal_places=0, default = 0)
@@ -25,6 +31,7 @@ class Game(models.Model):
 	active = models.BooleanField(default = True)
 	points = models.DecimalField(max_digits = 3, decimal_places = 0, blank = False, null = False)
 	slug = models.SlugField(unique = True, blank = True, null = False)
+	image = models.ImageField(upload_to = get_game_path, blank = False, null = False)
 
 class CheckPoint(models.Model):
 	check_type = models.CharField(choices = CheckPointTypes, max_length = 20, blank = False, null = False)
@@ -34,6 +41,7 @@ class CheckPoint(models.Model):
 	description = models.TextField(blank = False, null = False)
 	next_checkpoint = models.ForeignKey('self', on_delete = models.CASCADE, blank = True, null = True)
 	qr_data = models.TextField(blank = True, null = True)
+	image = models.ImageField(upload_to = get_check_path, blank = False, null = False)
 	last = models.BooleanField(default = False)
 	start = models.BooleanField(default = False)
 	address = models.CharField(max_length = 200, blank = True, null = True)
