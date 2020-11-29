@@ -10,6 +10,8 @@ const routes: RouteT[] = [
     name: "Пешком",
     length: 100,
     averageTime: 100,
+    description:
+      "Ipsum do irure ut excepteur reprehenderit nulla proident cupidatat ullamco officia pariatur enim consequat.",
     startCoordinates: {
       latitude: 60.977313,
       longitude: 69.039326,

@@ -54,7 +54,7 @@ const Login: React.FC = () => {
 
   return (
     <form onSubmit={handleSubmit(resetError, setUserState, gotError, router)}>
-      <input type="email" name="email" id="email" />
+      <input type="username" name="username" id="username" />
       <input type="password" name="password" id="password" autoComplete="on" />
       <input type="submit" />
       {error.has ? <ErrorMessage message={error.message} /> : ""}

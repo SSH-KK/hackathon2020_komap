@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 
-import HomeLayout from "layouts/HomeLayout";
 import styles from "styles/home.module.css";
 import { HomeRefContext } from "context/ref";
 import Register from "components/Register";
@@ -28,7 +27,7 @@ const advantagesList = [
   },
 ];
 
-const Home: React.FC & { Layout: React.ReactNode } = () => {
+const Home: React.FC = () => {
   const { setLoading } = useContext(LoadingContext);
   const { userState } = useContext(UserContext);
   const router = useRouter();
@@ -37,7 +36,8 @@ const Home: React.FC & { Layout: React.ReactNode } = () => {
     if (userState) {
       router.push("/user");
       return null;
-    } else setLoading(false);
+    } 
+    else setLoading(false);
   }, []);
 
   const scrollRef = useContext(HomeRefContext);
@@ -79,7 +79,5 @@ const Home: React.FC & { Layout: React.ReactNode } = () => {
     </>
   );
 };
-
-Home.Layout = HomeLayout;
 
 export default Home;

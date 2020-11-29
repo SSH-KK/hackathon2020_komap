@@ -3,6 +3,7 @@ type FCL = React.FC & { Layout: React.ReactNode };
 type RouteT = {
   id: number;
   name: string;
+  description: string;
   length: number;
   averageTime?: number;
   userTime?: number;
