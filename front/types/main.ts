@@ -1,3 +1,5 @@
+type FCL = React.FC & { Layout: React.ReactNode };
+
 type RouteT = {
   id: number;
   name: string;
@@ -13,4 +15,4 @@ type CoordinatesT = {
   longitude: number;
 };
 
-export type { RouteT, CoordinatesT };
+export type { FCL, RouteT, CoordinatesT };

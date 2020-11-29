@@ -1,8 +1,8 @@
-import UserLayout from "layouts/UserLayout";
 import { UserContext } from "context/user";
 import React, { useContext } from "react";
 import RouteView from "components/User/RouteView";
 import { RouteT } from "types/main";
+import { useRouter } from "next/router";
 
 const routes: RouteT[] = [
   {
@@ -19,13 +19,12 @@ const routes: RouteT[] = [
 
 const User = () => {
   const { userState, setUserState } = useContext(UserContext);
+
   return (
     <>
       <RouteView header={"Новые маршруты"} routes={routes} />
     </>
   );
 };
-
-User.Layout = UserLayout;
 
 export default User;
