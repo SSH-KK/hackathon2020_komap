@@ -47,10 +47,27 @@ class ListGamesAPIView(generics.ListAPIView):
 
 	def get_queryset(self):
 		profile = Profile.objects.get(user = self.request.user)
-		if(self.kwargs['visited'] == '0'):
-			data = list(map(lambda team_i: team_i.game,filter(lambda ob:not Gamer.objects.filter(profile = profile, team = ob).exists(), Team.objects.all())))
-		else:
-			data = list(map(lambda team_i: team_i.game,filter(lambda ob:Gamer.objects.filter(profile = profile, team = ob).exists(), Team.objects.all())))
+		data = []
+		for game_i in Game.objects.filter(active = True):
+			teams = game_i.teams.all()
+			if(self.kwargs['visited'] == '0'):
+				test = True
+				for team_i in teams:
+					gamer_i = Gamer.objects.filter(team = team_i, profile = profile)
+					if(gamer_i.exists()):
+						test = False
+						break
+				if(test):
+					data.append(game_i)
+			else:
+				test = False
+				for team_i in teams:
+					gamer_i = Gamer.objects.filter(team = team_i, profile = profile)
+					if(gamer_i.exists()):
+						test = True
+						break
+				if(test):
+					data.append(game_i)
 		if(len(data)!=0):
 			return list_to_queryset(data)
 		else:

@@ -46,6 +46,7 @@ class CurrentCheckPointSerializer(serializers.ModelSerializer):
 			'name',
 			'description',
 			'address',
+			'image'
 		]
 
 class TeamSerializer(serializers.ModelSerializer):
