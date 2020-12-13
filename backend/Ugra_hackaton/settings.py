@@ -27,6 +27,8 @@ DEBUG = int(os.environ.get("DEBUG", default=0))
 
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
 
+# ALLOWED_HOSTS = ['.now.sh']
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -85,7 +87,7 @@ DATABASES = {
         'NAME': os.environ.get("POSTGRES_DB"),
         'USER': os.environ.get("POSTGRES_USER"),
         'PASSWORD': os.environ.get("POSTGRES_PASSWORD"),
-        'HOST': 'db',
+        'HOST': "db",
         'PORT': '5432',
     }
 }

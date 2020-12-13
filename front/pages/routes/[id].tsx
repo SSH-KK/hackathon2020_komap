@@ -6,6 +6,7 @@ const route: RouteT = {
   id: 0,
   length: 10,
   name: "Тест",
+  description: "ghjfhgjhfg",
   averageTime: 10,
   startCoordinates: {
     latitude: 10,
